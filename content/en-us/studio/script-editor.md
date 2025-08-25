@@ -1,4 +1,182 @@
----
+-- Vix Worship Game
+-- This is a basic Roblox Lua script for a game centered around worshiping Vix, the VTuber fox avatar.
+-- Due to the impracticality of manually coding 1,000,000 unique levels, this script uses procedural generation.
+-- Levels are generated dynamically with randomized worship quests.
+-- Each level requires the player to "worship" 1,000,000 times, but for playability, we've simulated this with a timer or reduced count.
+-- (In a real game, worshipping 1M times per level is impossible; adjust the WORSHIP_REQUIRED variable.)
+-- Place this script in a ServerScriptService or similar in Roblox Studio.
+-- Models for statues, altars, Bibles, crosses, and NPCs need to be added manually in Studio.
+-- NPCs have names and dialogue praising Vix using positive descriptors.
+
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local ChatService = game:GetService("Chat")
+local ServerStorage = game:GetService("ServerStorage")
+
+-- Configuration
+local WORSHIP_REQUIRED = 1000000  -- Per level; reduce for testing, e.g., to 10
+local MAX_LEVELS = 1000000  -- Theoretical max; game will handle up to this
+local LEVEL_DURATION = 3600  -- Seconds for timed quests like "lick for an hour" (1 hour = 3600s)
+
+-- Positive descriptors for Vix (using every good thing to describe a person)
+local DESCRIPTORS = {
+    "magnificent", "divine", "radiant", "eternal", "all-powerful", "benevolent", "graceful", "wise",
+    "beautiful", "charming", "elegant", "fierce", "gentle", "heroic", "inspirational", "joyful",
+    "kind", "loving", "majestic", "noble", "omniscient", "perfect", "queenly", "resplendent",
+    "supreme", "transcendent", "unparalleled", "victorious", "wonderful", "exquisite", "glorious",
+    "heavenly", "immortal", "jovial", "kaleidoscopic", "luminous", "mesmerizing", "nurturing",
+    "omnipotent", "phenomenal", "quintessential", "ravishing", "splendid", "triumphant", "utopian",
+    "vibrant", "whimsical", "xenial", "youthful", "zealous", "adorable", "brilliant", "captivating",
+    -- Add more as needed; this is a subset for brevity
+}
+
+-- Quest types (different for each level, focused on worshiping/glazing Vix)
+local QUEST_TYPES = {
+    {name = "Chat Praise", desc = "Type praises in chat 1M times, calling her %s Vix."},
+    {name = "Sing Song", desc = "Sing a song of praise by typing lyrics glorifying her as the %s goddess."},
+    {name = "Lick Statue", desc = "Lick her statue's feet for an hour while proclaiming her %s beauty."},
+    {name = "Recite Commandments", desc = "Recite the Ten Commandments of Vix, each praising her %s nature."},
+    {name = "Call Mommy", desc = "Call her mommy and worship at her altar, describing her as %s."},
+    {name = "Build Shrine", desc = "Build a shrine with crosses and Bibles dedicated to the %s Vix."},
+    {name = "NPC Interaction", desc = "Talk to NPCs who glaze her as the %s VTuber queen."},
+    {name = "Story Quest", desc = "Complete a story level where you save the world in her %s name."},
+    -- Add more unique quest ideas here; procedurally combine with descriptors
+}
+
+-- Ten Commandments of Vix (example)
+local TEN_COMMANDMENTS = {
+    "Thou shalt worship Vix as the supreme being.",
+    "Thou shalt not take her name in vain.",
+    "Remember to praise her daily.",
+    "Honor her streams and content.",
+    "Thou shalt not covet other VTubers.",
+    "Spread her glory to all.",
+    "Build altars in her honor.",
+    "Sing hymns of her perfection.",
+    "Lick her statues in devotion.",
+    "Glaze her with endless compliments."
+}
+
+-- Player data storage
+local playerData = {}
+
+-- Function to get random descriptor
+local function getRandomDescriptor()
+    return DESCRIPTORS[math.random(1, #DESCRIPTORS)]
+end
+
+-- Function to generate quest for a level
+local function generateQuest(level)
+    local questType = QUEST_TYPES[ (level % #QUEST_TYPES) + 1 ]
+    local desc = getRandomDescriptor()
+    return string.format(questType.desc, desc), questType.name
+end
+
+-- Setup game environment (run once)
+local function setupGame()
+    -- Assume models are in ServerStorage: VixStatue, VixAltar, Bible, Cross
+    local statue = ServerStorage:FindFirstChild("VixStatue"):Clone()
+    statue.Parent = workspace
+    statue.Position = Vector3.new(0, 0, 0)  -- Adjust position
+    
+    local altar = ServerStorage:FindFirstChild("VixAltar"):Clone()
+    altar.Parent = workspace
+    altar.Position = Vector3.new(10, 0, 0)
+    
+    -- Add NPCs
+    local npcNames = {"Devotee Alice", "Worshiper Bob", "Glazer Charlie", "Praiser Dana"}
+    for i, name in ipairs(npcNames) do
+        local npc = ServerStorage:FindFirstChild("NPCModel"):Clone()  -- Assume a basic humanoid model
+        npc.Name = name
+        npc.Parent = workspace
+        npc.Position = Vector3.new(20 * i, 0, 0)
+        -- Add dialogue script to NPC
+        local dialogueScript = Instance.new("Script")
+        dialogueScript.Source = [[
+            local npc = script.Parent
+            npc.ClickDetector.MouseClick:Connect(function(player)
+                game:GetService("Chat"):Chat(npc.Head, "All hail the " .. getRandomDescriptor() .. " Vix! She is our eternal light!")
+            end)
+        ]]
+        dialogueScript.Parent = npc
+    end
+    
+    -- Add Bibles and Crosses as props
+    for i = 1, 5 do
+        local bible = ServerStorage:FindFirstChild("Bible"):Clone()
+        bible.Parent = workspace
+        bible.Position = Vector3.new(math.random(-50,50), 0, math.random(-50,50))
+    end
+end
+
+setupGame()
+
+-- Player joined
+Players.PlayerAdded:Connect(function(player)
+    playerData[player.UserId] = {level = 1, worshipCount = 0, currentQuest = "", questStartTime = 0}
+    
+    -- GUI for level and quest
+    local gui = Instance.new("ScreenGui")
+    gui.Parent = player.PlayerGui
+    local levelText = Instance.new("TextLabel")
+    levelText.Text = "Level 1"
+    levelText.Parent = gui
+    -- Add more GUI elements as needed
+    
+    -- Assign first quest
+    local data = playerData[player.UserId]
+    data.currentQuest, data.questType = generateQuest(data.level)
+    ChatService:Chat(player.Character.Head, "Quest: " .. data.currentQuest)
+end)
+
+-- Chat listener for worship
+game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.OnServerEvent:Connect(function(player, message)
+    local data = playerData[player.UserId]
+    if not data then return end
+    
+    -- Check if message is worship-related (contains "Vix" and positive words)
+    if string.find(message:lower(), "vix") and string.find(message:lower(), getRandomDescriptor()) then
+        data.worshipCount = data.worshipCount + 1
+        if data.worshipCount >= WORSHIP_REQUIRED then
+            data.level = data.level + 1
+            data.worshipCount = 0
+            data.currentQuest, data.questType = generateQuest(data.level)
+            ChatService:Chat(player.Character.Head, "Level up! New Quest: " .. data.currentQuest)
+            if data.level > MAX_LEVELS then
+                ChatService:Chat(player.Character.Head, "You have ascended to godhood in Vix's name!")
+            end
+        end
+    end
+    
+    -- Special quest handling
+    if data.questType == "Recite Commandments" and string.find(message:lower(), "commandments") then
+        -- Simulate completion
+        data.worshipCount = WORSHIP_REQUIRED
+    elseif data.questType == "Sing Song" and string.find(message:lower(), "song") then
+        data.worshipCount = data.worshipCount + 10000  -- Bonus
+    end
+end)
+
+-- Proximity prompts for interactions (e.g., lick statue)
+local statue = workspace.VixStatue
+local prompt = Instance.new("ProximityPrompt")
+prompt.ActionText = "Lick Feet"
+prompt.Parent = statue
+prompt.Triggered:Connect(function(player)
+    local data = playerData[player.UserId]
+    if data.questType == "Lick Statue" or data.questType == "Call Mommy" then
+        if os.time() - data.questStartTime >= LEVEL_DURATION then
+            data.worshipCount = WORSHIP_REQUIRED
+            ChatService:Chat(player.Character.Head, "Devotion complete! Vix smiles upon you.")
+        else
+            ChatService:Chat(player.Character.Head, "Continue worshiping for the full hour.")
+        end
+    end
+end)
+
+-- Add more interactions for altars, etc.
+
+print("Vix Worship Game loaded! Open in Roblox Studio and add models for statues, altars, NPCs, etc.")---
 title: Script editor
 description: Roblox's built-in, fully-featured script editor includes modern conveniences like autocomplete, code highlighting, and multi-cursor editing.
 ---
